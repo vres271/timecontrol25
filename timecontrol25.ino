@@ -80,12 +80,8 @@ const int GTX_PIN = 7;
 
 
 //--------------------- НАСТРОЙКИ ----------------------
-#define CH_AMOUNT 3   // число каналов
-#define CH_NUM 0x0c //0x60   // номер канала (должен совпадать)
-#define SEND_DEBUG_MODE 0   // выводить отправленное  и принятое
 #define BTN_TMT 50   // антидребезг кнопок
 #define BTN_LONGPRESS_TIME 1000   // антидребезг кнопок
-#define PING_TMT 500   // интервал пинга
 #define LASER true   // использование лазера
 //#define MUTE true   // заглушить звуки
 
@@ -104,23 +100,9 @@ bool MUTE;   // заглушить звуки
 #define EEPROM_OFFSET 32   // сдвиг памяти - размер области для служебных данных
 byte SENSOR_MODE = 0;   // режим датчика (FALLING/RISING/CHANGE)
 #define SENSOR_ON_INTERRUPT true   // Датчик висит на прерывании
-// уровень мощности передатчика. На выбор RF24_PA_MIN, RF24_PA_LOW, RF24_PA_HIGH, RF24_PA_MAX
-//#define SIG_POWER RF24_PA_MIN
-//#define SIG_POWER RF24_PA_LOW
-// скорость обмена. На выбор RF24_2MBPS, RF24_1MBPS, RF24_250KBPS
-// должна быть одинакова на приёмнике и передатчике!
-// при самой низкой скорости имеем самую высокую чувствительность и дальность!!
-// ВНИМАНИЕ!!! enableAckPayload НЕ РАБОТАЕТ НА СКОРОСТИ 250 kbps!
-//#define SIG_SPEED RF24_1MBPS
 //--------------------- НАСТРОЙКИ ----------------------
 
 //--------------------- БИБЛИОТЕКИ ----------------------
-// #include <SPI.h>
-// #include "nRF24L01.h"
-// #include "RF24.h"
-// #include "printf.h"
-// RF24 radio(9, 10);   // "создать" модуль на пинах 9 и 10 для НАНО/УНО
-//RF24 radio(9, 53); // для МЕГИ
 #include <EEPROM.h>
 
 // BT SoftwareSerial
@@ -177,8 +159,6 @@ boolean recievedFlag;
 #include <SoftwareSerial.h>
 SoftwareSerial BTSerial(GRX_PIN, GTX_PIN);
 
-
-
 // Дисплей
 #include <TM1637Display.h>
 TM1637Display display(disp_clkPIN, disp_dioPIN);
@@ -186,10 +166,6 @@ TM1637Display display(disp_clkPIN, disp_dioPIN);
 //--------------------- БИБЛИОТЕКИ ----------------------
 
 //--------------------- ПЕРЕМЕННЫЕ ----------------------
-//byte pipeNo;
-//byte address[][6] = {"1Node", "2Node", "3Node", "4Node", "5Node", "6Node"}; // возможные номера труб
-
-//volatile unsigned int SENSOR_TIMEOUT = 1000;
 volatile unsigned long t = 0;
 unsigned int cur_racer = 1;
 unsigned int sensor_value = 0;
@@ -200,9 +176,6 @@ unsigned long sens_last_released, btn_last_released, bat_v_last_msrd, dbl_btn_re
 unsigned long last_ping, timer_started, result_time, cur_lap_time, cur_time, best_lap_time = 0, best_time = 0, ping_time, last_test_time = 0, inputvals_last_showed = 0, serial_last_read = 0;
 unsigned int test_send_counter = 0;
 unsigned long display_blocked = 0;
-
-// unsigned long transmit_data[CH_AMOUNT];  // массив пересылаемых данных
-// unsigned long recieved_data, test_data; // массив принятых данных
 
 byte state = 0;
 byte menu = 0;
@@ -223,21 +196,9 @@ struct Row {
 int unsigned last_result_num, cur_result_to_read = 9999;
 
 
-
-// Protocol
-//	1	Timer	
-//		1	start	13	racer number
-//		2	cancel	-	curent racer
-//	2	Settings	
-//	3	Get
-//	4	Empty ping
-//	5	Confirm
-//	6	Testing
-//		1	start	13	racer number
-
 void setup() {
 
-	Serial.begin(9600); //Serial.setTimeout(100);
+	Serial.begin(9600); 
 	BTSerial.begin(19200);  BTSerial.setTimeout(100);
 
 	log("\n ==== TC Start ==== \n");
@@ -270,10 +231,6 @@ void setup() {
 		pinMode(laser_sensInt, INPUT);
 	}
 
-
-	// radioSetup();
-	// if(MODE==0) radioOff(); // Если включен круговой режим, гасим радио
-
 	display.setBrightness(7);
 	displayWord(_r,_A,_C,_E);
 
@@ -298,11 +255,9 @@ void loop() {
 	checkForSensor();
 	handler();
 	getBatV();
-	//ping();
 
 	parsingSeparate();
 	SerialRouter();
-
 }
 
 void handler(byte event_code = 0, long unsigned data = 0) {
@@ -319,7 +274,6 @@ void handler(byte event_code = 0, long unsigned data = 0) {
 	//	1	Race
 
 	if(event_code==0) event_code = checkForEvents();
-	//if(event_code) {log("\n"); log(event_code);}
 
 	if(event_code == 1  || event_code == 3) beep(140,10);
 	if( event_code == 2 ) beep(400,20);
@@ -328,7 +282,7 @@ void handler(byte event_code = 0, long unsigned data = 0) {
 		if(event_code == 1) { // Нажата  кнопка 1
 			if(!menu_entered) {
 				if(menu<=0) {
-					menu = 16;
+					menu = 13;
 				} else {
 					menu--;
 				}
@@ -339,7 +293,7 @@ void handler(byte event_code = 0, long unsigned data = 0) {
 			}
 		} else if(event_code == 3) { // Нажата  кнопка 3
 			if(!menu_entered) {
-				if(menu>=16) {
+				if(menu>=13) {
 					menu = 0;
 				} else {
 					menu++;
@@ -479,34 +433,7 @@ void handler(byte event_code = 0, long unsigned data = 0) {
 					displayWord(__,__,_N,_O); // __NO
 				}
 			}
-		} else if (menu == 5) { // Время отклика
-			if(!menu_entered) {
-				displayWord(_P,_i,_N,_G); // Ping
-			} else {
-				displayInt(int(ping_time));
-			}
-		} else if (menu == 6) { // Количество успешно отправленных пакетов
-			if(!menu_entered) {
-				displayWord(_L,_O,_S,_t); // Lost
-			} else {
-				displayInt(int(rssi));
-			}
-		} else if (menu == 7) { // Тестирование
-			if(!menu_entered) {
-				displayWord(_t,_E,_S,_t); // tESt
-			} else {
-				if(millis()-last_test_time > 300) {
-					//send(6,1,10+test_send_counter);
-					test_send_counter++;
-					last_test_time = millis();
-				}
-				// if(event_code == 5) {// Принято сообщение
-				// 	test_data = data;
-				// 	log("Recieved testing:");log(" ");log(data);log("\n");
-				// }
-				// displayTime(test_data);
-			}
-		} else if (menu == 8) { // Напряжение питания
+		} else if (menu == 5) { // Напряжение питания
 			if(!menu_entered) {
 				displayWord(_B,_A,_t,_r); // Batery
 			} else {
@@ -515,7 +442,7 @@ void handler(byte event_code = 0, long unsigned data = 0) {
 					log("\nBatery voltage:"); log(" ");  BTSerial.print(bat_v*bat_v_k,3);  log("\n");
 				}
 			}
-		} else if (menu == 9) { // Режим датчика
+		} else if (menu == 6) { // Режим датчика
 			if(!menu_entered) {
 				displayWord(_S,_E,_N,_S); // SENS
 			} else {
@@ -541,7 +468,7 @@ void handler(byte event_code = 0, long unsigned data = 0) {
 				}
 				
 			}
-		} else if (menu == 10) { // Режим круг/прямой
+		} else if (menu == 7) { // Режим круг/прямой
 			if(!menu_entered) {
 				displayWord(_n,_O,_D,_E); // MODE
 			} else {
@@ -560,13 +487,11 @@ void handler(byte event_code = 0, long unsigned data = 0) {
 				}
 				if(MODE==0) {
 					displayWord(_L,_A,_P,_S); // LAPS
-					//radioOff();
 				} else if (MODE==1) {
 					displayWord(_L,_i,_N,_E); // LINE
-					//radioOn();
 				}
 			}
-		} else if (menu == 11) { // Количество кругов
+		} else if (menu == 8) { // Количество кругов
 			if(!menu_entered) {
 				displayWord(_L,_A,_P,_N); // LAPN
 				if(event_code == 2 && new_laps_number != LAPS_NUMBER) {
@@ -592,11 +517,9 @@ void handler(byte event_code = 0, long unsigned data = 0) {
 					EEPROM.put(9, LAPS_NUMBER);
 					displayInt(LAPS_NUMBER); 
 					log("\nSet LAPS_NUMBER: "); log(LAPS_NUMBER); log("\n");
-					//beep( 3000,100); delay(150);
 				}
 			}
-
-		} else if (menu == 12) { // SENSOR_MA_VALUES_NUM
+		} else if (menu == 9) { // SENSOR_MA_VALUES_NUM
 			if(!menu_entered) {
 				displayWord(_S,_A,_U,_G); // SAVG
 				if(event_code == 2 && new_sensor_ma_values_num != SENSOR_MA_VALUES_NUM) {
@@ -614,7 +537,7 @@ void handler(byte event_code = 0, long unsigned data = 0) {
 				}
 				displayInt(new_sensor_ma_values_num); 
 			}
-		} else if (menu == 13) { // SENSOR_TRUE_LEVEL
+		} else if (menu == 10) { // SENSOR_TRUE_LEVEL
 			if(!menu_entered) {
 				displayWord(_S,_L,_u,_L); // SLVL
 				if(event_code == 2 && new_sensor_true_level != SENSOR_TRUE_LEVEL) {
@@ -646,7 +569,7 @@ void handler(byte event_code = 0, long unsigned data = 0) {
 				displayInt(SENSOR_TRUE_LEVEL); 
 				log("\nSet SENSOR_TRUE_LEVEL: "); log(SENSOR_TRUE_LEVEL); log("\n");
 			}
-		} else if (menu == 14) { // SENSOR_TIMEOUT
+		} else if (menu == 11) { // SENSOR_TIMEOUT
 			if(!menu_entered) {
 				displayWord(_S,_t,_n,_t); // Stnt
 				if(event_code == 2 && new_sensor_timeout != SENSOR_TIMEOUT) {
@@ -678,7 +601,7 @@ void handler(byte event_code = 0, long unsigned data = 0) {
 				displayInt(SENSOR_TIMEOUT); 
 				log("\nSet SENSOR_TIMEOUT: "); log(SENSOR_TIMEOUT); log("\n");
 			}
-		} else if (menu == 15) { // Включение/выключение звука
+		} else if (menu == 12) { // Включение/выключение звука
 			if(!menu_entered) {
 				displayWord(_n,_U,_t,_E); // MUTE
 			} else {
@@ -700,7 +623,7 @@ void handler(byte event_code = 0, long unsigned data = 0) {
 					displayWord(__,__,_N,_O); // __NO
 				}
 			}
-		} else if (menu == 16) { // Настройка датчика
+		} else if (menu == 13) { // Настройка датчика
 			if(!menu_entered) {
 				displayWord(_S,_C,_A,_L);  // SCAL
 			} else {
@@ -719,21 +642,6 @@ void handler(byte event_code = 0, long unsigned data = 0) {
 			beep( 3000,200); delay(250);
 			state = 0;
 			menu_entered = 0;
-		// } else if(event_code == 5) { // Принято сообщение
-		// 	if(data>128) { // Пришел результат заезда
-		// 	    log("\nResult: ");log(cur_racer);log(": ");Serial.print(0.001*data,3);BTSerial.print(0.001*data,3);log("\n\n");
-		// 		result_time = data;
-		// 		displayTime(result_time);
-		// 		beep( 3000,100); delay(150);
-		// 		beep( 3000,100); delay(150);
-		// 		beep( 3000,100); delay(150);
-		// 		if(SAVE_RESULTS) writeResult(cur_racer,result_time);
-		// 		unsigned int write_to_addr = EEPROM.get(0, write_to_addr);
-		// 		last_result_num = write_to_addr/sizeof(Row)-1;
-		// 		cur_result_to_read = last_result_num;
-		// 	    state = 2;
-		// 	} else { // Пришла команда
-		// 	}
 
 			// best_lap_racer
 			// best_racer
@@ -810,7 +718,6 @@ void handler(byte event_code = 0, long unsigned data = 0) {
 		if(event_code == 1 || event_code == 2 || event_code == 3) {
 			state = 0;
 		} else if(event_code == 4) {
-			//send(1,1,cur_racer);
 			state = 1;
 			timer_started = millis();
 			beep( 9050,300);
@@ -818,18 +725,15 @@ void handler(byte event_code = 0, long unsigned data = 0) {
 			laps_counter = 0;
 			log("\nr "); log(cur_racer); log(" started");
 		}
-
 	}
 
 	if(LASER && event_code) {
-		if(menu_entered && (menu == 0 || menu == 16)) { // Включаем лазер при входе в пункт меню "гонка" или "настройка датчика"
+		if(menu_entered && (menu == 0 || menu == 13)) { // Включаем лазер при входе в пункт меню "гонка" или "настройка датчика"
 			digitalWrite(laserPIN, HIGH);
 		} else {
 			digitalWrite(laserPIN, LOW);
 		}
 	}
-
-	//// old dysp setDisplay(0,0,0,event_code);
 }
 
 
@@ -918,7 +822,6 @@ void checkForSensor() {
 	    sensor_value = ((SENSOR_MA_VALUES_NUM-1)*sensor_value + analogRead(laser_sensPIN))/SENSOR_MA_VALUES_NUM;
 		if(sensor_value>=SENSOR_TRUE_LEVEL) {
 			laser_state = true;
-			//log("\n"); log(laser_sensPIN); log(" "); log(sensor_value);
 		} else {
 			if(laser_state) sens = true;
 			laser_state = false;
@@ -950,21 +853,13 @@ void onSensor(long unsigned senst) {
 	if(senst - sens_last_released < SENSOR_TIMEOUT) {return false;}
 	sens_last_released = senst;
 	handler(4);
-	//log("Sensor released\n");
 }
 
-
-void onRecieved(long unsigned data) {
-    if(SEND_DEBUG_MODE) {log("> Recieved: ");log(data);log("\n");}
-    //send(5,1,cur_racer);
-    handler(5, data);
-}
 
 void setCurRacer(unsigned int n) {
 	cur_racer = n;
 	displayCurRacer(cur_racer);
 	log("Set racer: ");log(cur_racer);log("\n");
-	//send(2,1,cur_racer);
 }
 
 void getBatV() {
@@ -1006,82 +901,6 @@ void getInputValues() {
 
 	inputvals_last_showed = millis();
 }
-
-// void ping() {
-// 	if(millis() - last_ping < PING_TMT) return;
-// 	if(state==1) {
-// 		send(3,1,cur_racer);
-// 	} else {
-// 		send(4,1,cur_racer);
-// 	}
-// 	last_ping = millis();
-// }
-
-
-// void send(long unsigned object, long unsigned method, long unsigned data) {
-// 	if(MODE == 0) return;
-// 	transmit_data[0] = object;
-// 	transmit_data[1] = method;
-// 	transmit_data[2] = data;
-// 	long unsigned last_tx_time = micros();
-// 	if(radio.write(&transmit_data, sizeof(transmit_data))) {
-// 		if(object != 3 && SEND_DEBUG_MODE) {log("> Sended: ");log(object);log(" ");log(method);log(" ");log(data);log("\n");}
-// 	    trnsmtd_pack++;
-// 		if(ping_time == 0) {
-// 			ping_time = micros() - last_tx_time;
-// 		} else {
-// 			ping_time = (micros() - last_tx_time + 4*ping_time)/5;
-// 		}
-// 	    if (!radio.available()) {                                  // если получаем пустой ответ
-// 	    } else {
-// 	      while (radio.available() ) {                    // если в ответе что-то есть
-//         	radio.read(&recieved_data, sizeof(recieved_data));    // читаем
-// 	        onRecieved(recieved_data);
-// 	      }
-//     	}
-// 	} else {
-//     	failed_pack++;
-// 	}
-
-// 	if (millis() - RSSI_timer > 5000) {                        // таймер RSSI
-// 	    // рассчёт качества связи (0 - 100%) на основе числа ошибок и числа успешных передач
-// 	    rssi = (1 - ((float)failed_pack / trnsmtd_pack)) * 100;  
-
-// 	    // сбросить значения
-// 	    failed_pack = 0;
-// 	    trnsmtd_pack = 0;
-// 	    RSSI_timer = millis();
-// 	}
-
-// }
-
-
-// void radioSetup() {
-//   radio.begin();              // активировать модуль
-//   radio.setAutoAck(1);        // режим подтверждения приёма, 1 вкл 0 выкл
-//   radio.setRetries(0, 15);    // (время между попыткой достучаться, число попыток)
-//   radio.enableAckPayload();   // разрешить отсылку данных в ответ на входящий сигнал
-//   radio.setPayloadSize(32);   // размер пакета, в байтах
-//   radio.openWritingPipe(address[0]);   // мы - труба 0, открываем канал для передачи данных
-//   radio.setChannel(CH_NUM);            // выбираем канал (в котором нет шумов!)
-//   radio.setPALevel(SIG_POWER);         // уровень мощности передатчика
-//   radio.setDataRate(SIG_SPEED);        // скорость обмена
-//   // должна быть одинакова на приёмнике и передатчике!
-//   // при самой низкой скорости имеем самую высокую чувствительность и дальность!!
-
-//   radio.powerUp();         // начать работу
-//   radio.stopListening();   // не слушаем радиоэфир, мы передатчик
-// }
-
-// void radioOn() {
-// 	radio.powerUp();
-// }
-
-// void radioOff() {
-// 	radio.powerDown();
-// }
-
-
 
 struct Row readResult(unsigned int i) {
 	Row row;
@@ -1255,7 +1074,6 @@ void millisToTime(long unsigned time){
   m = m_-h_*60;
   log(m<10?"0":"");log(m);log(":");log(s<10?"0":"");log(s);log(".");log(ms<10?"0":"");log(ms<100?"0":"");log(ms);
   //return (m<10?"0":"")+String(m)+":"+(s<10?"0":"")+String(s)+"."+(ms<10?"0":"")+(ms<100?"0":"")+String(ms);
-  //return (m<10?"0":"")+String(m)+":"+(s<10?"0":"")+String(s)+"."+(ms<10?"0":"")+(ms<100?"0":"")+String(ms);
 }
 
 void parsingSeparate() {
@@ -1317,7 +1135,7 @@ void SerialRouter() {
 				handler(12, 1*(prsValue.toInt()>0));
 			}
 		} else if (thisName == _MUTE && state !=1) {
-			menu=15;
+			menu=12;
 			menu_entered=true;
 			if(prsValue == "") {
 				handler(21, 0);
@@ -1325,7 +1143,7 @@ void SerialRouter() {
 				handler(22, 1*(prsValue.toInt()>0));
 			}
 		} else if (thisName == _MODE && state !=1) {
-			menu=10;
+			menu=7;
 			menu_entered=true;
 			if(prsValue == "") {
 				handler(13, 0);
@@ -1333,7 +1151,7 @@ void SerialRouter() {
 				handler(14, 1*(prsValue.toInt()>0));
 			}
 		} else if (thisName == LAPS && state !=1) {
-			menu=11;
+			menu=8;
 			menu_entered=true;
 			if(prsValue == "") {
 				handler(15, 0);
@@ -1341,7 +1159,7 @@ void SerialRouter() {
 				handler(16, prsValue.toInt());
 			}
 		} else if (thisName == _STIMEOUT && state !=1) {
-			menu=14;
+			menu=11;
 			menu_entered=true;
 			if(prsValue == "") {
 				handler(23, 0);
@@ -1349,7 +1167,7 @@ void SerialRouter() {
 				handler(24, prsValue.toInt());
 			}
 		} else if (thisName == LEVEL && state !=1) {
-			menu=13;
+			menu=10;
 			if(prsValue == "") {
 				handler(17, 0);
 			} else {
@@ -1358,11 +1176,11 @@ void SerialRouter() {
 		} else if (thisName == CANCEL) {
 			handler(40);
 		} else if (thisName == SCAL && state !=1) {
-			menu=16;
+			menu=13;
 			menu_entered=true;
 			handler(19);
 		} else if (thisName == BATR && state !=1) {
-			menu=8;
+			menu=5;
 			menu_entered=true;
 			handler(20);
 		} else if (thisName == BUTTON1) {
