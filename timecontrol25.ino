@@ -70,6 +70,8 @@
 // Beeper
 #define beepPIN A3
 #define beepGND A4
+// Audio
+#define AudioOUT_PIN 10
 
 // Batery
 #define batvPIN A1
@@ -95,6 +97,7 @@ unsigned int  SENSOR_TRUE_LEVEL, new_sensor_true_level; // уровень с к�
 unsigned int LAPS_NUMBER, new_laps_number; // количество кругов
 unsigned int SENSOR_TIMEOUT, new_sensor_timeout; // игнорирует повторные срабатывания дачтика втечение таймаута
 bool MUTE;   // заглушить звуки
+bool EXTERNAL_AUDIO_ON;   // внешний звук
 
 
 #define EEPROM_OFFSET 32   // сдвиг памяти - размер области для служебных данных
@@ -222,6 +225,8 @@ void setup() {
 	pinMode(beepGND, OUTPUT);
 	digitalWrite(beepGND, LOW);
 
+	pinMode(AudioOUT_PIN, OUTPUT);
+
 	pinMode(batvPIN, INPUT);
 
 	if(LASER) {
@@ -282,7 +287,7 @@ void handler(byte event_code = 0, long unsigned data = 0) {
 		if(event_code == 1) { // Нажата  кнопка 1
 			if(!menu_entered) {
 				if(menu<=0) {
-					menu = 13;
+					menu = 14;
 				} else {
 					menu--;
 				}
@@ -293,7 +298,7 @@ void handler(byte event_code = 0, long unsigned data = 0) {
 			}
 		} else if(event_code == 3) { // Нажата  кнопка 3
 			if(!menu_entered) {
-				if(menu>=13) {
+				if(menu>=14) {
 					menu = 0;
 				} else {
 					menu++;
@@ -623,7 +628,21 @@ void handler(byte event_code = 0, long unsigned data = 0) {
 					displayWord(__,__,_N,_O); // __NO
 				}
 			}
-		} else if (menu == 13) { // Настройка датчика
+		} else if (menu == 13) { // Внешний звук
+			if(!menu_entered) {
+				displayWord(_E,_S,_n,_d); // EXTERNAL_AUDIO_ON
+			} else {
+				if(event_code == 1 || event_code == 3) {
+					EXTERNAL_AUDIO_ON = !EXTERNAL_AUDIO_ON;
+					EEPROM.put(14, EXTERNAL_AUDIO_ON);
+				}
+				if(EXTERNAL_AUDIO_ON==1) {
+					displayWord(__,_y,_E,_S); // _YES
+				} else {
+					displayWord(__,__,_N,_O); // __NO
+				}
+			}
+		} else if (menu == 14) { // Настройка датчика
 			if(!menu_entered) {
 				displayWord(_S,_C,_A,_L);  // SCAL
 			} else {
@@ -728,7 +747,7 @@ void handler(byte event_code = 0, long unsigned data = 0) {
 	}
 
 	if(LASER && event_code) {
-		if(menu_entered && (menu == 0 || menu == 13)) { // Включаем лазер при входе в пункт меню "гонка" или "настройка датчика"
+		if(menu_entered && (menu == 0 || menu == 14)) { // Включаем лазер при входе в пункт меню "гонка" или "настройка датчика"
 			digitalWrite(laserPIN, HIGH);
 		} else {
 			digitalWrite(laserPIN, LOW);
@@ -999,6 +1018,12 @@ void readSettings() {
 	log(SENSOR_TIMEOUT);
 	log("\n");
 
+	EXTERNAL_AUDIO_ON = EEPROM.get(14, EXTERNAL_AUDIO_ON);
+	//if(EXTERNAL_AUDIO_ON != true || EXTERNAL_AUDIO_ON != false) EXTERNAL_AUDIO_ON = false;
+	log("EXTERNAL_AUDIO_ON: ");
+	log(EXTERNAL_AUDIO_ON);
+	log("\n");
+
 	log("\n");
 }
 
@@ -1176,7 +1201,7 @@ void SerialRouter() {
 		} else if (thisName == CANCEL) {
 			handler(40);
 		} else if (thisName == SCAL && state !=1) {
-			menu=13;
+			menu=14;
 			menu_entered=true;
 			handler(19);
 		} else if (thisName == BATR && state !=1) {
@@ -1198,7 +1223,7 @@ void SerialRouter() {
 
 void beep(unsigned int freq, unsigned int duration) {
 	if(MUTE) return;
-	tone(beepPIN, freq,duration);
+	tone(EXTERNAL_AUDIO_ON?AudioOUT_PIN:beepPIN, freq,duration);
 }
 
 void printHelp() {
