@@ -280,8 +280,8 @@ void handler(byte event_code = 0, long unsigned data = 0) {
 
 	if(event_code==0) event_code = checkForEvents();
 
-	if(event_code == 1  || event_code == 3) beep(140,10);
-	if( event_code == 2 ) beep(400,20);
+	if((event_code == 1  || event_code == 3) && !EXTERNAL_AUDIO_ON) beep(140,10);
+	if( event_code == 2 && !EXTERNAL_AUDIO_ON) beep(400,20);
 
 	if(state == 0) { // Состояние - меню
 		if(event_code == 1) { // Нажата  кнопка 1
@@ -327,7 +327,7 @@ void handler(byte event_code = 0, long unsigned data = 0) {
 					timer_started = millis();
 					result_time = 0;
 					laps_counter = 0;
-					beep( 9050,300);
+					beep( 3000,300);
 					log("\nr "); log(cur_racer); log(" started");
 				} else if (event_code == 10) {
 					if(data) setCurRacer(data);
@@ -408,9 +408,9 @@ void handler(byte event_code = 0, long unsigned data = 0) {
 				displayWord(_C,_L,_r,__); // CLr_
 			} else {
 				displayWord(_y,__,__,_n); // y__n
-				if(event_code == 1) {
+				if(event_code == 3) {
 					menu_entered = 0;
-				} else if(event_code == 3) {
+				} else if(event_code == 1) {
 					clearResults();
 					delay(500);
 					menu_entered = 0;
@@ -669,8 +669,8 @@ void handler(byte event_code = 0, long unsigned data = 0) {
 		} else if (event_code == 4) { // Сработал датчик
 			if(MODE==0) { // В круговом режиме -  проехан круг
 				//displayWord(__,__,__,__);
-				beep( 4000,40); delay(60);
-				beep( 4000,40); 
+				beep( 4000,100); delay(150);
+				beep( 4000,100); 
 				display_blocked = millis();
 				laps_counter++;
 				cur_lap_time = millis() - timer_started - cur_time;
@@ -699,9 +699,9 @@ void handler(byte event_code = 0, long unsigned data = 0) {
 				    log("\nResult:");log(" ");log(cur_racer);log(": ");millisToTime(result_time);
 					laps_counter = 0;
 					displayTime(result_time);
-					beep( 3000,100); delay(150);
-					beep( 3000,100); delay(150);
-					beep( 3000,100); delay(150);
+					beep( 3000,150); delay(200);
+					beep( 3000,150); delay(200);
+					beep( 3000,150); delay(200);
 
 					if(best_time==0) {
 						best_racer = cur_racer;
@@ -739,7 +739,7 @@ void handler(byte event_code = 0, long unsigned data = 0) {
 		} else if(event_code == 4) {
 			state = 1;
 			timer_started = millis();
-			beep( 9050,300);
+			beep( 3000,300); 
 			result_time = 0;
 			laps_counter = 0;
 			log("\nr "); log(cur_racer); log(" started");
