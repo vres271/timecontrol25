@@ -80,12 +80,12 @@
 const int GRX_PIN = 8;
 const int GTX_PIN = 7;
 
-
 //--------------------- НАСТРОЙКИ ----------------------
 #define BTN_TMT 50   // антидребезг кнопок
 #define BTN_LONGPRESS_TIME 1000   // антидребезг кнопок
 #define LASER true   // использование лазера
 //#define MUTE true   // заглушить звуки
+#define REF_V 5100 // опорное напряжение 
 
 byte MODE = 0;   // режим работы 	
 	//	0 - круговой с одним устройством, 
@@ -442,9 +442,11 @@ void handler(byte event_code = 0, long unsigned data = 0) {
 			if(!menu_entered) {
 				displayWord(_B,_A,_t,_r); // Batery
 			} else {
-				displayInt(1000*bat_v*bat_v_k);
+				//displayInt(1000*bat_v*bat_v_k);
+				displayInt(map(bat_v, 0, 1024, 0, REF_V));
 				if(event_code == 20) {
-					log("\nBatery voltage:"); log(" ");  BTSerial.print(bat_v*bat_v_k,3);  log("\n");
+					//log("\nBatery voltage:"); log(" ");  BTSerial.print(bat_v*bat_v_k,3);  log("\n");
+					log("\nBatery voltage:"); log(" ");  BTSerial.print(map(bat_v, 0, 1024, 0, REF_V),3);  log("\n");
 				}
 			}
 		} else if (menu == 6) { // Режим датчика
